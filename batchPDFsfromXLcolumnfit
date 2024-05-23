@@ -1,0 +1,44 @@
+
+# Load Excel COM object
+$excel = New-Object -ComObject Excel.Application
+$excel.Visible = $false  # Set to $true if you want to see Excel in action
+
+# Prompt user to enter the folder path
+$folderPath = Read-Host "Paste the folder path containing the Excel files"
+
+# Prompt user to enter the output PDF folder path
+$pdfFolderPath = Read-Host "Paste the output PDF folder path"
+
+# Loop through each Excel file in the folder
+Get-ChildItem -Path $folderPath -Filter *.xlsx | ForEach-Object {
+    $workbook = $excel.Workbooks.Open($_.FullName)
+
+    # Loop through each worksheet in the workbook
+    foreach ($worksheet in $workbook.Worksheets) {
+        # Set the worksheet to fit all columns to one page
+        $worksheet.PageSetup.Zoom = $false
+        $worksheet.PageSetup.FitToPagesWide = 1
+        $worksheet.PageSetup.FitToPagesTall = $false
+    }
+
+    # Construct PDF filename
+    $pdfFileName = Join-Path -Path $pdfFolderPath -ChildPath "$($_.BaseName).pdf"
+
+    # Save as PDF
+    $workbook.ExportAsFixedFormat([Microsoft.Office.Interop.Excel.XlFixedFormatType]::xlTypePDF, $pdfFileName)
+
+    # Close the workbook without saving changes
+    $workbook.Close($false)
+}
+
+# Quit Excel application
+$excel.Quit()
+
+# Release COM objects
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($worksheet) | Out-Null
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($workbook) | Out-Null
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+[System.GC]::Collect()
+[System.GC]::WaitForPendingFinalizers()
+
+Write-Host "PDFs created."
